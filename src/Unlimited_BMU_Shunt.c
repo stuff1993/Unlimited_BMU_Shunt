@@ -59,8 +59,8 @@ void SysTick_Handler (void)
 
 	MsgBuf_TX1.Frame = 0x00080000;
   MsgBuf_TX1.MsgID = BMU_SHUNT;
-  MsgBuf_TX1.DataA = BMU_DATA.BusV;
-  MsgBuf_TX1.DataB = BMU_DATA.BusI;
+  MsgBuf_TX1.DataA = conv_float_uint(BMU_DATA.BusV);
+  MsgBuf_TX1.DataB = conv_float_uint(BMU_DATA.BusI);
   CAN1_SendMessage( &MsgBuf_TX1 );
 
   if((LPC_CAN1->SR & 0x00040404) == 0x00040404){LPC_CAN1->CMR = 0x42;} // Abort from buffer 2
@@ -108,17 +108,9 @@ void shunt_read (void)
 
 	BMU_DATA.BusV = iir_filter_float((float)(ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0))/(8.0 * V_DIVIDER), BMU_DATA.BusV, IIR_GAIN_ELECTRICAL);
 	ADC_B = (float)(ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1))/8.0;
-	ADC_C = -((float)(ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2))/8.0);
+	ADC_C = (float)(ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2))/8.0;
 
-	if(ADC_B > ADC_C)
-	{
-		BMU_DATA.BusI = iir_filter_float(ADC_B, BMU_DATA.BusI, IIR_GAIN_ELECTRICAL);
-	}
-	else
-
-	{
-		BMU_DATA.BusI = iir_filter_float(ADC_C, BMU_DATA.BusI, IIR_GAIN_ELECTRICAL);
-	}
+	BMU_DATA.BusI = iir_filter_float(ADC_B - ADC_C, BMU_DATA.BusI, IIR_GAIN_ELECTRICAL);
 
 	BMU_DATA.Watts = BMU_DATA.BusI * BMU_DATA.BusV;
 }
