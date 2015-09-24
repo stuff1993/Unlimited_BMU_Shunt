@@ -12,9 +12,9 @@
 #include "inttofloat.h"
 #include "Unlimited_BMU_Shunt.h"
 
-extern CAN_MSG MsgBuf_RX1, MsgBuf_RX2;
-extern CAN_MSG MsgBuf_TX1, MsgBuf_TX2;
-extern volatile uint8_t CAN1RxDone, CAN2RxDone;
+extern CAN_MSG can_rx1_buf;
+extern CAN_MSG can_tx1_buf;
+extern volatile uint8_t can_rx1_done, CAN2RxDone;
 
 volatile uint32_t CANStatus;
 volatile uint32_t CAN1RxCount = 0, CAN2RxCount = 0;
@@ -36,7 +36,7 @@ volatile uint32_t CANActivityInterruptFlag = 0;
 ******************************************************************************/
 void CAN_ISR_Rx1( void )
 {
-	uint32_t * pDest = (uint32_t *)&MsgBuf_RX1;
+	uint32_t * pDest = (uint32_t *)&can_rx1_buf;
 
 	*pDest = LPC_CAN1->RFS; // Frame
 	pDest++;
@@ -50,7 +50,7 @@ void CAN_ISR_Rx1( void )
 	*pDest = LPC_CAN1->RDB; // DataB
 	pDest++;
 
-	switch (MsgBuf_RX1.MsgID)
+	switch (can_rx1_buf.MsgID)
 	{
 	default:
 		break;
@@ -314,53 +314,6 @@ uint32_t CAN1_SendMessage( CAN_MSG *pTxBuf )
   return ( FALSE );
 }
 
-/******************************************************************************
-** Function name:		CAN2_SendMessage
-**
-** Descriptions:		Send message block to CAN2
-**
-** parameters:			pointer to the CAN message
-** Returned value:		true or false, if message buffer is available,
-**						message can be sent successfully, return TRUE,
-**						otherwise, return FALSE.
-**
-******************************************************************************/
-uint32_t CAN2_SendMessage( CAN_MSG *pTxBuf )
-{
-  uint32_t CANStatus;
-
-  CAN2TxCount++;
-  CANStatus = LPC_CAN2->SR;
-  if ( CANStatus & 0x00000004 )
-  {
-	LPC_CAN2->TFI1 = pTxBuf->Frame & 0xC00F0000;
-	LPC_CAN2->TID1 = pTxBuf->MsgID;
-	LPC_CAN2->TDA1 = pTxBuf->DataA;
-	LPC_CAN2->TDB1 = pTxBuf->DataB;
-	LPC_CAN2->CMR |= 0x21;
-	return ( TRUE );
-  }
-  else if ( CANStatus & 0x00000400 )
-  {
-	LPC_CAN2->TFI2 = pTxBuf->Frame & 0xC00F0000;
-	LPC_CAN2->TID2 = pTxBuf->MsgID;
-	LPC_CAN2->TDA2 = pTxBuf->DataA;
-	LPC_CAN2->TDB2 = pTxBuf->DataB;
-	LPC_CAN2->CMR |= 0x41;
-	return ( TRUE );
-  }
-  else if ( CANStatus & 0x00040000 )
-  {
-	LPC_CAN2->TFI3 = pTxBuf->Frame & 0xC00F0000;
-	LPC_CAN2->TID3 = pTxBuf->MsgID;
-	LPC_CAN2->TDA3 = pTxBuf->DataA;
-	LPC_CAN2->TDB3 = pTxBuf->DataB;
-	LPC_CAN2->CMR |= 0x81;
-	return ( TRUE );
-  }
-  return ( FALSE );
-}
-
 void setCANBUS1(void)
 {
 	CAN1_Init( BITRATE500K30MHZ );
@@ -368,35 +321,15 @@ void setCANBUS1(void)
 	/* Test Acceptance Filter */
 	/* Even though the filter RAM is set for all type of identifiers,
 	the test module tests explicit standard identifier only */
-	MsgBuf_TX1.Frame = 0x00080000; /* 11-bit, no RTR, DLC is 8 bytes */
-	MsgBuf_TX1.MsgID = 0x0; /* Explicit Standard ID */
-	MsgBuf_TX1.DataA = 0x0;
-	MsgBuf_TX1.DataB = 0x0;
+	can_tx1_buf.Frame = 0x00080000; /* 11-bit, no RTR, DLC is 8 bytes */
+	can_tx1_buf.MsgID = 0x0; /* Explicit Standard ID */
+	can_tx1_buf.DataA = 0x0;
+	can_tx1_buf.DataB = 0x0;
 
-	MsgBuf_RX1.Frame = 0x0;
-	MsgBuf_RX1.MsgID = 0x0;
-	MsgBuf_RX1.DataA = 0x0;
-	MsgBuf_RX1.DataB = 0x0;
-
-	CAN_SetACCF( ACCF_BYPASS );
-}
-
-void setCANBUS2(void)
-{
-	CAN2_Init( BITRATE125K30MHZ );
-
-	/* Test Acceptance Filter */
-	/* Even though the filter RAM is set for all type of identifiers,
-	the test module tests explicit standard identifier only */
-	MsgBuf_TX2.Frame = 0x00080000; /* 11-bit, no RTR, DLC is 8 bytes */
-	MsgBuf_TX2.MsgID = MPPT1_BASE; /* Explicit Standard ID */
-	MsgBuf_TX2.DataA = 0x00000000;
-	MsgBuf_TX2.DataB = 0x00000000;
-
-	MsgBuf_RX2.Frame = 0x0;
-	MsgBuf_RX2.MsgID = 0x0;
-	MsgBuf_RX2.DataA = 0x0;
-	MsgBuf_RX2.DataB = 0x0;
+	can_rx1_buf.Frame = 0x0;
+	can_rx1_buf.MsgID = 0x0;
+	can_rx1_buf.DataA = 0x0;
+	can_rx1_buf.DataB = 0x0;
 
 	CAN_SetACCF( ACCF_BYPASS );
 }

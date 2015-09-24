@@ -199,9 +199,7 @@ uint32_t CAN2_Init( uint32_t can_btr );
 void CAN_SetACCF_Lookup( void );
 void CAN_SetACCF( uint32_t ACCFMode );
 uint32_t CAN1_SendMessage( CAN_MSG* pTXBuf );
-uint32_t CAN2_SendMessage( CAN_MSG* pTXBuf );
 void setCANBUS1(void);
-void setCANBUS2(void);
 
 #endif	// __CAN_H
 

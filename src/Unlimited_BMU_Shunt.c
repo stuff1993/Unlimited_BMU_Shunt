@@ -23,7 +23,7 @@
 #include "struct.h"
 #include "Unlimited_BMU_Shunt.h"
 
-CAN_MSG MsgBuf_TX1, MsgBuf_RX1;
+CAN_MSG can_tx1_buf, can_rx1_buf;
 
 extern volatile uint8_t I2CMasterBuffer[I2C_PORT_NUM][BUFSIZE];
 extern volatile uint32_t I2CWriteLength[I2C_PORT_NUM];
@@ -44,40 +44,40 @@ void SysTick_Handler (void)
 	CLOCK.T_mS++;
 
 	/// Time sensitive calculations
-	BMU_DATA.WattHrs += BMU_DATA.Watts / 36000.0;
-	if(BMU_DATA.Watts > 0)
+	bmu_data.watt_hrs += bmu_data.watts / 36000.0;
+	if(bmu_data.watts > 0)
 	{
-	  BMU_DATA.WattHrsOut += BMU_DATA.Watts / 36000.0;
+	  bmu_data.watt_hrs_out += bmu_data.watts / 36000.0;
 	}
 	else
 	{
-    BMU_DATA.WattHrsIn -= BMU_DATA.Watts / 36000.0;
+    bmu_data.watt_hrs_in -= bmu_data.watts / 36000.0;
   }
 
 	/// CAN Tx
-	if((LPC_CAN1->SR & 0x00040404) == 0x00040404){LPC_CAN1->CMR = 0x22;} // Abort from buffer 1
+	if(!(LPC_CAN1->SR & 0x00000004)){LPC_CAN1->CMR = 0x22;} // Abort from buffer 1
 
-	MsgBuf_TX1.Frame = 0x00080000;
-  MsgBuf_TX1.MsgID = BMU_SHUNT;
-  MsgBuf_TX1.DataA = conv_float_uint(BMU_DATA.BusV);
-  MsgBuf_TX1.DataB = conv_float_uint(BMU_DATA.BusI);
-  CAN1_SendMessage( &MsgBuf_TX1 );
+	can_tx1_buf.Frame = 0x00080000;
+  can_tx1_buf.MsgID = BMU_SHUNT;
+  can_tx1_buf.DataA = conv_float_uint(bmu_data.bus_v);
+  can_tx1_buf.DataB = conv_float_uint(bmu_data.bus_i);
+  CAN1_SendMessage( &can_tx1_buf );
 
-  if((LPC_CAN1->SR & 0x00040404) == 0x00040404){LPC_CAN1->CMR = 0x42;} // Abort from buffer 2
+  if(!(LPC_CAN1->SR & 0x00000400)){LPC_CAN1->CMR = 0x42;} // Abort from buffer 2
 
-  MsgBuf_TX1.Frame = 0x00080000;
-  MsgBuf_TX1.MsgID = BMU_SHUNT + 1;
-  MsgBuf_TX1.DataA = conv_float_uint(BMU_DATA.WattHrsOut);
-  MsgBuf_TX1.DataB = conv_float_uint(BMU_DATA.WattHrsIn);
-  CAN1_SendMessage( &MsgBuf_TX1 );
+  can_tx1_buf.Frame = 0x00080000;
+  can_tx1_buf.MsgID = BMU_SHUNT + 1;
+  can_tx1_buf.DataA = conv_float_uint(bmu_data.watt_hrs_out);
+  can_tx1_buf.DataB = conv_float_uint(bmu_data.watt_hrs_in);
+  CAN1_SendMessage( &can_tx1_buf );
 
-  if((LPC_CAN1->SR & 0x00040404) == 0x00040404){LPC_CAN1->CMR = 0x82;} // Abort from buffer 3
+  if(!(LPC_CAN1->SR & 0x00040000)){LPC_CAN1->CMR = 0x82;} // Abort from buffer 3
 
-  MsgBuf_TX1.Frame = 0x00080000;
-  MsgBuf_TX1.MsgID = BMU_SHUNT + 2;
-  MsgBuf_TX1.DataA = conv_float_uint(BMU_DATA.WattHrs);
-  MsgBuf_TX1.DataB = 0x0;
-  CAN1_SendMessage( &MsgBuf_TX1 );
+  can_tx1_buf.Frame = 0x00040000;
+  can_tx1_buf.MsgID = BMU_SHUNT + 2;
+  can_tx1_buf.DataA = conv_float_uint(bmu_data.watt_hrs);
+  can_tx1_buf.DataB = 0x0;
+  CAN1_SendMessage( &can_tx1_buf );
 
 	if(CLOCK.T_mS >= 10) // Calculate time
 	{
@@ -106,13 +106,13 @@ void shunt_read (void)
 {
   float ADC_B, ADC_C;
 
-	BMU_DATA.BusV = iir_filter_float((float)(ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0))/(8.0 * V_DIVIDER), BMU_DATA.BusV, IIR_GAIN_ELECTRICAL);
+	bmu_data.bus_v = iir_filter_float((float)(ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0))/(8.0 * V_DIVIDER), bmu_data.bus_v, IIR_GAIN_ELECTRICAL);
 	ADC_B = (float)(ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1))/8.0;
 	ADC_C = (float)(ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2))/8.0;
 
-	BMU_DATA.BusI = iir_filter_float(ADC_B - ADC_C, BMU_DATA.BusI, IIR_GAIN_ELECTRICAL);
+	bmu_data.bus_i = iir_filter_float(ADC_B - ADC_C, bmu_data.bus_i, IIR_GAIN_ELECTRICAL);
 
-	BMU_DATA.Watts = BMU_DATA.BusI * BMU_DATA.BusV;
+	bmu_data.watts = bmu_data.bus_i * bmu_data.bus_v;
 }
 
 /******************************************************************************
@@ -274,9 +274,9 @@ void I2C_Write (uint16_t _EEadd, uint8_t data0, uint8_t data1, uint8_t data2, ui
 ******************************************************************************/
 void store_persistent (void)
 {
-  EE_Write(AddressBMUWHR, conv_float_uint(BMU_DATA.WattHrs));
-  EE_Write(AddressBMUWHRI, conv_float_uint(BMU_DATA.WattHrsIn));
-  EE_Write(AddressBMUWHRO, conv_float_uint(BMU_DATA.WattHrsOut));
+  EE_Write(AddressBMUWHR, conv_float_uint(bmu_data.watt_hrs));
+  EE_Write(AddressBMUWHRI, conv_float_uint(bmu_data.watt_hrs_in));
+  EE_Write(AddressBMUWHRO, conv_float_uint(bmu_data.watt_hrs_out));
 }
 
 /******************************************************************************
@@ -290,9 +290,9 @@ void store_persistent (void)
 ******************************************************************************/
 void load_nonpersistent (void)
 {
-	BMU_DATA.BusI = 0;
-	BMU_DATA.BusV = 0;
-	BMU_DATA.Watts = 0;
+	bmu_data.bus_i = 0;
+	bmu_data.bus_v = 0;
+	bmu_data.watts = 0;
 
 	CLOCK.T_mS = 0;
 	CLOCK.T_S = 0;

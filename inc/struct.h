@@ -19,12 +19,12 @@ struct CLOCK_STRUCT
 
 struct BMU_BUS_DATA
 {
-	float BusV;
-	float BusI;
-	float Watts;
-	float WattHrsIn;
-	float WattHrsOut;
-	float WattHrs;
-}BMU_DATA;
+	float bus_v;
+	float bus_i;
+	float watts;
+	float watt_hrs_in;
+	float watt_hrs_out;
+	float watt_hrs;
+}bmu_data;
 
 #endif /* STRUCT_H_ */
