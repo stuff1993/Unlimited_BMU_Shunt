@@ -10,9 +10,11 @@
 
 #define IIR_GAIN_ELECTRICAL 1000
 
-#define V_DIVIDER 12.2
-#define IR_DIVIDER
-#define IF_DIVIDER
+#define V_DIVIDER 12.3526
+#define ADC_B_SCALE 46.8
+#define ADC_C_SCALE -46.8
+#define ADC_B_CAL 2197
+#define ADC_C_CAL 1968
 
 #define STATUS_ON     LPC_GPIO0->FIOSET |= (1<<3);
 #define STATUS_OFF    LPC_GPIO0->FIOCLR |= (1<<3);

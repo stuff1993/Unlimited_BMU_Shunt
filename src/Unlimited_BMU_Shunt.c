@@ -105,12 +105,20 @@ void SysTick_Handler (void)
 void shunt_read (void)
 {
   float ADC_B, ADC_C;
-
+  int i = 0;
 	bmu_data.bus_v = iir_filter_float((float)(ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0) + ADCRead(0))/(8.0 * V_DIVIDER), bmu_data.bus_v, IIR_GAIN_ELECTRICAL);
-	ADC_B = (float)(ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1) + ADCRead(1))/8.0;
-	ADC_C = (float)(ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2) + ADCRead(2))/8.0;
+	for(i = 0; i<64;i++)
+	{
+		ADC_B += (float)ADCRead(1);
+		ADC_C += (float)ADCRead(2);
+	}
+	ADC_B /= 64.0;
+	ADC_C /= 64.0;
 
-	bmu_data.bus_i = iir_filter_float(ADC_B - ADC_C, bmu_data.bus_i, IIR_GAIN_ELECTRICAL);
+	ADC_B = (ADC_B_CAL - ADC_B) / ADC_B_SCALE;
+	ADC_C = (ADC_C_CAL - ADC_C) / ADC_C_SCALE;
+	
+	bmu_data.bus_i = iir_filter_float((ADC_B+ADC_C)/2.0, bmu_data.bus_i, IIR_GAIN_ELECTRICAL);
 
 	bmu_data.watts = bmu_data.bus_i * bmu_data.bus_v;
 }
