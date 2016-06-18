@@ -43,6 +43,12 @@ void SysTick_Handler (void)
 {
 	CLOCK.T_mS++;
 
+	if(LPC_WDT->WDMOD & 0x1)
+	{
+		LPC_WDT->WDFEED = 0xAA;
+		LPC_WDT->WDFEED = 0x55;
+	}
+
 	/// Time sensitive calculations
 	bmu_data.watt_hrs += bmu_data.watts / 36000.0;
 	if(bmu_data.watts > 0)
@@ -301,6 +307,9 @@ void load_nonpersistent (void)
 	bmu_data.bus_i = 0;
 	bmu_data.bus_v = 0;
 	bmu_data.watts = 0;
+	bmu_data.watt_hrs = 0;
+	bmu_data.watt_hrs_in = 0;
+	bmu_data.watt_hrs_out = 0;
 
 	CLOCK.T_mS = 0;
 	CLOCK.T_S = 0;
@@ -371,6 +380,29 @@ int32_t iir_filter_int (int32_t _data_in, int32_t _cur_data, uint16_t _gain)
 float iir_filter_float (float _data_in, float _cur_data, uint16_t _gain)
 {return (((_gain-1)*_cur_data)+_data_in)/_gain;}
 
+
+/******************************************************************************
+** Function name:   init_watchdog
+**
+** Description:     Initalise Watchdog Resets
+**
+** Parameters:      None
+** Returned value:  None
+**
+******************************************************************************/
+void init_watchdog(void)
+{
+  LPC_WDT->WDCLKSEL = 0x1;    // Set to main osc and lock
+  LPC_WDT->WDCLKSEL |= 0x1 << 31;
+
+  LPC_WDT->WDTC = 0x07270E00; // 120,000,000 Clock Cycles
+
+  LPC_WDT->WDMOD = 0x3;       // Enable chip reset on timeout
+
+  LPC_WDT->WDFEED = 0xAA;     // Start watchdog with inital feed sequence
+  LPC_WDT->WDFEED = 0x55;
+}
+
 /******************************************************************************
 ** Function name:   main
 **
@@ -396,6 +428,8 @@ int main(void)
 	ADCInit(ADC_CLK);
 
 	init_GPIO();
+
+	init_watchdog();
 
 	while(1){shunt_read();}
 
